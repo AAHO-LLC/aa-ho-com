@@ -17,6 +17,7 @@
     --accent:#0f5c4d; --accent-2:#c17a3a; --accent-soft:#e6efe9;
     --radius:18px; --shadow:0 12px 32px rgba(24,32,28,.08);
     --header-h:60px; --dock-h:64px;
+    --safe-b:env(safe-area-inset-bottom, 0px);
   }
   @media (prefers-color-scheme: dark){
     :root{
@@ -28,6 +29,7 @@
     }
   }
   *{box-sizing:border-box}
+  html{background:var(--bg)}
   html,body{height:100%}
   body{
     margin:0; overflow:hidden;
@@ -42,8 +44,8 @@
   /* ---- fixed header ---- */
   header{
     position:fixed; inset:0 0 auto 0; height:var(--header-h); z-index:30;
-    backdrop-filter:saturate(1.2) blur(10px);
-    background:color-mix(in srgb, var(--bg) 86%, transparent);
+    /* solid background, no backdrop blur: blur repainted every frame during scroll and stuttered on desktop */
+    background:var(--bg);
     border-bottom:1px solid var(--line);
   }
   .header-inner{max-width:1180px; margin:0 auto; height:100%; padding:0 20px; display:flex; align-items:center; justify-content:space-between; gap:16px}
@@ -62,16 +64,20 @@
 
   /* ---- horizontal deck: one section per screen ---- */
   .deck{
-    height:100dvh; display:flex; overflow-x:auto; overflow-y:hidden;
+    /* svh = small viewport height: always inside the visible area, even while the
+       mobile browser bar is expanded. 100dvh here left a dead strip at the bottom
+       and pushed the dock off-screen. */
+    height:100vh; height:100svh;
+    display:flex; overflow-x:auto; overflow-y:hidden;
     scroll-snap-type:x mandatory; scroll-behavior:smooth;
     scrollbar-width:none; overscroll-behavior-x:contain;
   }
   .deck::-webkit-scrollbar{display:none}
   @media (prefers-reduced-motion: reduce){ .deck{scroll-behavior:auto} }
   .panel{
-    flex:0 0 100%; width:100%; height:100dvh; scroll-snap-align:start; scroll-snap-stop:always;
+    flex:0 0 100%; width:100%; height:100vh; height:100svh; scroll-snap-align:start; scroll-snap-stop:always;
     overflow-y:auto; overflow-x:hidden;
-    padding:calc(var(--header-h) + 22px) 20px calc(var(--dock-h) + 18px);
+    padding:calc(var(--header-h) + 22px) 20px calc(var(--dock-h) + var(--safe-b) + 24px);
   }
   .panel-inner{max-width:1120px; margin:0 auto; min-height:100%; display:flex; flex-direction:column; justify-content:center}
   .kicker{font-size:12px; letter-spacing:.16em; text-transform:uppercase; font-weight:700; color:var(--accent)}
@@ -105,7 +111,9 @@
 
   /* QR city stage */
   .stage-card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow)}
-  .stage-box{position:relative; aspect-ratio:4/3.15; background:#e9ede8}
+  /* background matches the canvas sky gradient so a cleared frame never flashes white */
+  .stage-box{position:relative; aspect-ratio:4/3.15; background:linear-gradient(180deg,#eef2ef,#d8e0d6)}
+  @media (prefers-color-scheme: dark){ .stage-box{background:linear-gradient(180deg,#0a141f,#16283c)} }
   @media (max-width:560px){ .stage-box{aspect-ratio:1/1.02} }
   canvas#stage{display:block; width:100%; height:100%; touch-action:none; cursor:grab}
   canvas#stage.dragging{cursor:grabbing}
@@ -130,7 +138,7 @@
   .services{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-top:20px}
   @media (max-width:980px){ .services{grid-template-columns:repeat(2, 1fr)} }
   @media (max-width:560px){
-    .panel{padding:calc(var(--header-h) + 12px) 14px calc(var(--dock-h) + 10px)}
+    .panel{padding:calc(var(--header-h) + 12px) 14px calc(var(--dock-h) + var(--safe-b) + 16px)}
     h1{font-size:31px; margin:10px 0 8px}
     h2{font-size:23px}
     .lead{font-size:13.5px; line-height:1.5}
@@ -172,6 +180,15 @@
   .boundary-badge{font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; font-weight:700; color:var(--accent); border:1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); padding:4px 7px; border-radius:999px; background:var(--surface); vertical-align:middle}
   ul.clean{margin:10px 0 0; padding-left:18px; color:var(--ink-2); font-size:14px}
   ul.clean li{margin:5px 0}
+  /* short viewports: tighten About spacing (not type) so it fits one screen more often */
+  @media (max-height:780px){
+    .two-col{margin-top:14px; gap:10px}
+    .panel-card{padding:16px 18px}
+    .panel-card p{margin-bottom:9px}
+    ul.clean{margin-top:7px}
+    ul.clean li{margin:3px 0}
+    .section-note{margin-top:10px}
+  }
 
   /* contact */
   .contact-card{background:var(--ink); color:var(--bg); border-radius:20px; padding:30px; display:grid; grid-template-columns:1.1fr .9fr; gap:24px; margin-top:20px}
@@ -187,7 +204,8 @@
 
   /* ---- bottom dock: dots + arrows ---- */
   .dock{
-    position:fixed; left:0; right:0; bottom:0; height:var(--dock-h); z-index:30;
+    /* lifted above the home-indicator / browser-bar safe area so the switcher is never clipped */
+    position:fixed; left:0; right:0; bottom:calc(var(--safe-b) + 6px); height:var(--dock-h); z-index:30;
     display:flex; align-items:center; justify-content:center; gap:14px; pointer-events:none;
   }
   .dock > *{pointer-events:auto}
@@ -197,7 +215,7 @@
     display:grid; place-items:center; box-shadow:var(--shadow);
   }
   .arrow-btn:disabled{opacity:.35; cursor:default; box-shadow:none}
-  .dots{display:flex; gap:8px; background:color-mix(in srgb, var(--bg) 82%, transparent); backdrop-filter:blur(8px); border:1px solid var(--line); border-radius:999px; padding:8px 12px}
+  .dots{display:flex; gap:8px; background:var(--surface); border:1px solid var(--line); border-radius:999px; padding:8px 12px; box-shadow:var(--shadow)}
   .dot{width:8px; height:8px; border-radius:50%; border:0; padding:0; background:var(--line-strong)}
   .dot.on{background:var(--accent); transform:scale(1.25)}
   .panel-label{font-size:12px; color:var(--muted); font-weight:500; min-width:74px; text-align:center}
@@ -826,12 +844,23 @@
       const canvas = document.getElementById('stage');
       const ctx = canvas.getContext('2d');
       let cssW = 300, cssH = 300, dpr = 1;
+      // While the city is moving we cap the backing-store resolution (big desktop
+      // canvases at DPR 2 were the main frame cost); a still frame is redrawn once
+      // at full resolution so the resting image stays crisp.
+      const FULL_DPR = Math.min(2, window.devicePixelRatio || 1);
+      let dprCap = 1.5;
       function fitCanvas(){
         const rect = canvas.getBoundingClientRect();
-        dpr = Math.min(2, window.devicePixelRatio || 1);
+        dpr = Math.min(dprCap, window.devicePixelRatio || 1);
         cssW = Math.max(50, rect.width); cssH = Math.max(50, rect.height);
-        canvas.width = Math.round(cssW * dpr);
-        canvas.height = Math.round(cssH * dpr);
+        // Only touch the backing store when the size actually changes: assigning
+        // canvas.width/height clears the canvas, and doing it per frame caused
+        // the white flashing stripes around (especially below) the city.
+        const bw = Math.round(cssW * dpr), bh = Math.round(cssH * dpr);
+        if (canvas.width !== bw || canvas.height !== bh){
+          canvas.width = bw;
+          canvas.height = bh;
+        }
         needsDraw = true;
       }
       new ResizeObserver(fitCanvas).observe(canvas);
@@ -1902,21 +1931,50 @@
       });
 
       /* ============ Main loop ============ */
+      // Resolution policy: capped while the city is moving, full DPR at rest.
+      // The cap may only change when the moving STATE changes — never per frame.
+      // (Previously it was keyed to a flag that toggled every other frame during
+      // auto-rotate, so the canvas was resized — and therefore cleared — on
+      // every single frame: white flashing stripes and heavy judder.)
+      const MOVING_DPR = 1.5;
+      // Auto-rotate is slow on purpose: half the old angular speed and only
+      // ~20 rendered frames per second. The motion stays visibly smooth at
+      // this rate, and nothing else on the page ever competes with it.
+      const ROT_SPEED = Math.PI * 2 / 120; // rad/s — one full orbit takes 120 s
+      const ROT_FRAME_MS = 50;
+      let lastTick = 0, lastDrawn = 0;
       function tick(now){
         requestAnimationFrame(tick);
-        let active = false;
+        // The city lives on the Home panel only: while another section is on
+        // screen (or the tab is hidden) skip all drawing — previously it kept
+        // repainting at 60fps off-screen and made every other panel stutter.
+        // The deck also holds this flag for the whole duration of a section
+        // switch, so a switch never has to fight the painter mid-slide.
+        if (document.hidden || window.__cityPaused){ lastTick = now; return; }
+        const dt = lastTick ? Math.min(0.1, (now - lastTick) / 1000) : 0;
+        lastTick = now;
+        let animating = false;
         if (camAnim){
           const t = Math.min(1, (now - camAnim.start) / camAnim.dur);
           const e2 = 1 - Math.pow(1 - t, 3);
           cam.az = camAnim.fromAz + (camAnim.toAz - camAnim.fromAz) * e2;
           cam.el = camAnim.fromEl + (camAnim.toEl - camAnim.fromEl) * e2;
           if (t >= 1) camAnim = null;
-          active = true;
-        } else if (state.autoRotate && !dragging && now - lastInteract > 2600 && cam.el < 1.4 && !reducedMotion){
-          cam.az += 0.0021;
-          active = true;
+          animating = true;
         }
-        if (active || needsDraw){ draw(); needsDraw = false; }
+        const rotating = !camAnim && state.autoRotate && !dragging && now - lastInteract > 2600 && cam.el < 1.4 && !reducedMotion;
+        const moving = animating || dragging || rotating;
+        const wantCap = moving ? Math.min(MOVING_DPR, FULL_DPR) : FULL_DPR;
+        if (wantCap !== dprCap){ dprCap = wantCap; fitCanvas(); }
+        if (rotating){
+          // Time-based rotation on a fixed ~20fps cadence: advance the angle
+          // by real elapsed time and draw on a fixed interval, so the steps
+          // stay even instead of juddering with frame drops.
+          cam.az += ROT_SPEED * dt;
+          if (now - lastDrawn >= ROT_FRAME_MS){ draw(); lastDrawn = now; needsDraw = false; }
+        } else if (animating || needsDraw){
+          draw(); needsDraw = false; lastDrawn = now;
+        }
       }
       fitCanvas();
       buildCity();
@@ -1934,6 +1992,47 @@
   var navBtns = Array.prototype.slice.call(document.querySelectorAll('[data-goto]'));
   var current = 0;
 
+  /* ---- loop clones -----------------------------------------------------
+     One mirror panel at each end (Contact-clone | Home Services About
+     Contact | Home-clone) so swiping past either end keeps sliding in the
+     same direction. Once the deck settles on a clone, it jumps — without
+     animation — to the identical real panel, so the loop feels endless. */
+  var N = panels.length;
+  function prepClone(node){
+    node.classList.add('clone');
+    node.setAttribute('aria-hidden', 'true');
+    Array.prototype.slice.call(node.querySelectorAll('[id]')).forEach(function(el){ el.removeAttribute('id'); });
+    Array.prototype.slice.call(node.querySelectorAll('button, a, input')).forEach(function(el){
+      el.setAttribute('tabindex', '-1');
+      el.style.pointerEvents = 'none';
+      if (el.tagName === 'BUTTON') el.disabled = true;
+      if (el.tagName === 'A') el.removeAttribute('href'); // clone links are decorative mirrors only
+    });
+    return node;
+  }
+  var firstClone = prepClone(panels[0].cloneNode(true));
+  var lastClone = prepClone(panels[N - 1].cloneNode(true));
+  deck.appendChild(firstClone);
+  deck.insertBefore(lastClone, panels[0]);
+  var slots = Array.prototype.slice.call(deck.querySelectorAll('.panel'));
+  var slot = 1; // physical slot; real Home is slot 1, clones are 0 and N+1
+  function logicalOf(s){ return (s - 1 + N) % N; }
+  // The Home clone's canvas is a still copy of the real (paused) city frame.
+  var srcCanvas = panels[0].querySelector('canvas');
+  var cloneCanvas = firstClone.querySelector('canvas');
+  function mirrorClone(){
+    if (!srcCanvas || !cloneCanvas || !srcCanvas.width) return;
+    try {
+      if (cloneCanvas.width !== srcCanvas.width || cloneCanvas.height !== srcCanvas.height){
+        cloneCanvas.width = srcCanvas.width;
+        cloneCanvas.height = srcCanvas.height;
+      }
+      var cctx = cloneCanvas.getContext('2d');
+      cctx.clearRect(0, 0, cloneCanvas.width, cloneCanvas.height);
+      cctx.drawImage(srcCanvas, 0, 0);
+    } catch (e) {}
+  }
+
   panels.forEach(function(p, i){
     var d = document.createElement('button');
     d.type = 'button'; d.className = 'dot' + (i === 0 ? ' on' : '');
@@ -1944,16 +2043,37 @@
   var dots = Array.prototype.slice.call(dotsWrap.children);
 
   function goTo(i){
-    i = Math.max(0, Math.min(panels.length - 1, i));
-    deck.scrollTo({ left: i * deck.clientWidth, behavior: 'smooth' });
+    var targetLogical = ((i % N) + N) % N;
+    if (targetLogical === current && slot === targetLogical + 1) return;
+    var targetSlot;
+    if (i >= N && current === N - 1) targetSlot = N + 1;      // last -> Home clone (wraps to first)
+    else if (i < 0 && current === 0) targetSlot = 0;          // first -> Contact clone (wraps to last)
+    else targetSlot = targetLogical + 1;
+    holdCityDuringSwitch(); // stop rendering first, then slide
+    mirrorClone();
+    deck.scrollTo({ left: targetSlot * deck.clientWidth, behavior: 'smooth' });
   }
-  function sync(i){
+  function syncSlot(s){
+    slot = s;
+    var i = logicalOf(s);
     current = i;
     dots.forEach(function(d, j){ d.classList.toggle('on', j === i); });
     navBtns.forEach(function(b){ b.classList.toggle('on', Number(b.getAttribute('data-goto')) === i); });
     label.textContent = panels[i].getAttribute('data-label') || '';
-    prevBtn.disabled = i === 0;
-    nextBtn.disabled = i === panels.length - 1;
+    prevBtn.disabled = false; // looping deck: neither end is a dead end
+    nextBtn.disabled = false;
+    if (i === N - 1) mirrorClone(); // refresh the Home clone before it can slide in
+  }
+  function jumpToSlot(s){
+    var prev = deck.style.scrollBehavior;
+    deck.style.scrollBehavior = 'auto';
+    deck.scrollLeft = s * deck.clientWidth;
+    deck.style.scrollBehavior = prev;
+    syncSlot(s);
+  }
+  function normalizeClone(){
+    if (slot === 0) jumpToSlot(N);
+    else if (slot === N + 1) jumpToSlot(1);
   }
   navBtns.forEach(function(b){
     b.addEventListener('click', function(){ goTo(Number(b.getAttribute('data-goto'))); });
@@ -1961,19 +2081,55 @@
   prevBtn.addEventListener('click', function(){ goTo(current - 1); });
   nextBtn.addEventListener('click', function(){ goTo(current + 1); });
 
+  /* ---- QR-city render gating -------------------------------------------
+     The city engine reads window.__cityPaused. It stays paused while Home
+     is off-screen, and also for the whole duration of any section switch:
+     navigation stops rendering BEFORE the slide starts, and the city only
+     resumes once the deck has fully settled, so switching never has to
+     fight the painter. Free swipes are covered by the scroll listener: any
+     deck scroll pauses, and ~150 ms after the last scroll event it may
+     resume if Home ended up on screen. */
+  var homeVisible = true, deckScrolling = false, navSettling = false;
+  var settleTimer = 0, scrollEndTimer = 0;
+  function updateCityPause(){
+    window.__cityPaused = !homeVisible || deckScrolling || navSettling;
+  }
+  function holdCityDuringSwitch(){
+    navSettling = true;
+    updateCityPause();
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(function(){ normalizeClone(); navSettling = false; updateCityPause(); }, 900);
+  }
+
   if ('IntersectionObserver' in window){
     var io = new IntersectionObserver(function(entries){
       entries.forEach(function(en){
-        if (en.isIntersecting) sync(panels.indexOf(en.target));
+        if (en.isIntersecting) syncSlot(slots.indexOf(en.target));
       });
     }, { root: deck, threshold: 0.55 });
-    panels.forEach(function(p){ io.observe(p); });
+    slots.forEach(function(p){ io.observe(p); });
+    // pause the QR-city render loop whenever Home is off-screen
+    var cityIO = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ homeVisible = en.isIntersecting; updateCityPause(); });
+    }, { root: deck, threshold: 0.12 });
+    cityIO.observe(panels[0]);
   } else {
     deck.addEventListener('scroll', function(){
-      sync(Math.round(deck.scrollLeft / deck.clientWidth));
+      syncSlot(Math.max(0, Math.min(slots.length - 1, Math.round(deck.scrollLeft / deck.clientWidth))));
     }, { passive: true });
   }
-  sync(0);
+  deck.addEventListener('scroll', function(){
+    deckScrolling = true;
+    updateCityPause();
+    if (deck.scrollLeft > (N - 0.5) * deck.clientWidth) mirrorClone();
+    clearTimeout(scrollEndTimer);
+    scrollEndTimer = setTimeout(function(){ deckScrolling = false; normalizeClone(); updateCityPause(); }, 150);
+  }, { passive: true });
+  // start on the real Home panel (slot 1), not the leading Contact clone
+  jumpToSlot(1);
+  updateCityPause();
+  setTimeout(mirrorClone, 400);
+  window.addEventListener('resize', function(){ jumpToSlot(slot); mirrorClone(); });
 
   document.addEventListener('keydown', function(e){
     if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
